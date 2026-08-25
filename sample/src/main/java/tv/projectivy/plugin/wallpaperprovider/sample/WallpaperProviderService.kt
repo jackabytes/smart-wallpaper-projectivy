@@ -3,37 +3,42 @@ package tv.projectivy.plugin.wallpaperprovider.sample
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
+import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withContext
-import org.json.JSONArray
-import org.json.JSONObject
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import okhttp3.OkHttpClient
+import okhttp3.Request
 import tv.projectivy.plugin.wallpaperprovider.api.Event
 import tv.projectivy.plugin.wallpaperprovider.api.IWallpaperProviderService
 import tv.projectivy.plugin.wallpaperprovider.api.Wallpaper
 import tv.projectivy.plugin.wallpaperprovider.api.WallpaperDisplayMode
 import tv.projectivy.plugin.wallpaperprovider.api.WallpaperType
-import java.net.HttpURLConnection
-import java.net.URL
+
+@Serializable
+data class SmartWallpaperItem(
+    val title: String = "",
+    val url_1080p: String = "",
+    val url: String = ""
+)
 
 class WallpaperProviderService : Service() {
+
+    private val httpClient = OkHttpClient()
+
+    private val json = Json {
+        ignoreUnknownKeys = true
+        isLenient = true
+        allowTrailingComma = true
+    }
 
     private val binder = object : IWallpaperProviderService.Stub() {
 
         override fun getWallpapers(event: Event?): List<Wallpaper> {
-
-            // Projectivy controls the update timing.
-            // We deliberately do not create our own clock.
-            if (event !is Event.TimeElapsed) {
-                return emptyList()
-            }
-
-            return runCatching {
-                runBlocking {
-                    getCurrentWallpaper()
-                }
-            }.getOrElse {
-                emptyList()
+            return runBlocking {
+                fetchWallpapers()
             }
         }
 
@@ -42,7 +47,6 @@ class WallpaperProviderService : Service() {
         }
 
         override fun setPreferences(params: String) {
-            // No provider-side settings required for v1.
         }
     }
 
@@ -50,117 +54,81 @@ class WallpaperProviderService : Service() {
         return binder
     }
 
-    private suspend fun getCurrentWallpaper(): List<Wallpaper> =
-        withContext(Dispatchers.IO) {
+    private suspend fun fetchWallpapers(): List<Wallpaper> {
 
-            runCatching {
+        val source = withContext(Dispatchers.IO) {
+            try {
+                val request = Request.Builder()
+                    .url(WALLPAPER_JSON_URL)
+                    .build()
 
-                val connection =
-                    URL(WALLPAPER_JSON_URL)
-                        .openConnection() as HttpURLConnection
-
-                try {
-                    connection.requestMethod = "GET"
-                    connection.connectTimeout = 10000
-                    connection.readTimeout = 15000
-                    connection.useCaches = false
-
-                    connection.setRequestProperty(
-                        "Accept",
-                        "application/json"
-                    )
-
-                    connection.setRequestProperty(
-                        "User-Agent",
-                        "SmartWallpaper/1.0"
-                    )
-
-                    if (connection.responseCode !in 200..299) {
-                        return@runCatching emptyList()
+                httpClient.newCall(request).execute().use { response ->
+                    if (!response.isSuccessful) {
+                        Log.e(
+                            "SmartWallpaper",
+                            "wallpaper.json HTTP ${response.code}"
+                        )
+                        null
+                    } else {
+                        response.body.string()
                     }
+                }
 
-                    val json =
-                        connection.inputStream
-                            .bufferedReader()
-                            .use { it.readText() }
+            } catch (e: Exception) {
+                Log.e(
+                    "SmartWallpaper",
+                    "Failed to download wallpaper.json",
+                    e
+                )
+                null
+            }
+        }
 
-                    val items = parseWallpaperJson(json)
+        if (source.isNullOrBlank()) {
+            return emptyList()
+        }
 
-                    if (items.isEmpty()) {
-                        return@runCatching emptyList()
-                    }
+        return withContext(Dispatchers.Default) {
+            try {
 
-                    val item = items.first()
+                val items =
+                    json.decodeFromString<List<SmartWallpaperItem>>(source)
+
+                items.mapNotNull { item ->
 
                     val wallpaperUrl =
-                        item.optString("url_1080p")
-                            .ifBlank {
-                                item.optString("url")
-                            }
+                        item.url_1080p.ifBlank {
+                            item.url
+                        }
 
                     if (wallpaperUrl.isBlank()) {
-                        return@runCatching emptyList()
-                    }
-
-                    val title =
-                        item.optString("title")
-                            .ifBlank {
-                                "Smart Wallpaper"
-                            }
-
-                    listOf(
+                        null
+                    } else {
                         Wallpaper(
                             uri = wallpaperUrl,
                             type = WallpaperType.VIDEO,
                             displayMode = WallpaperDisplayMode.DEFAULT,
-                            title = title,
-                            source = "Smart Wallpaper",
+                            title = item.title.ifBlank {
+                                "Smart Wallpaper"
+                            },
+                            source = WALLPAPER_JSON_URL,
                             author = null
                         )
-                    )
-
-                } finally {
-                    connection.disconnect()
+                    }
                 }
 
-            }.getOrElse {
+            } catch (e: Exception) {
+                Log.e(
+                    "SmartWallpaper",
+                    "Failed to parse wallpaper.json",
+                    e
+                )
                 emptyList()
             }
-        }
-
-    private fun parseWallpaperJson(
-        json: String
-    ): List<JSONObject> {
-
-        val trimmed = json.trim()
-
-        if (trimmed.isEmpty()) {
-            return emptyList()
-        }
-
-        if (trimmed.startsWith("[")) {
-
-            val array = JSONArray(trimmed)
-
-            return List(array.length()) { index ->
-                array.getJSONObject(index)
-            }
-        }
-
-        val root = JSONObject(trimmed)
-
-        val wallpapers =
-            root.optJSONArray("wallpapers")
-                ?: root.optJSONArray("items")
-                ?: JSONArray()
-
-        return List(wallpapers.length()) { index ->
-            wallpapers.getJSONObject(index)
         }
     }
 
     companion object {
-
         private const val WALLPAPER_JSON_URL =
             "https://jackabytes.github.io/smart-wallpaper/wallpaper.json"
     }
