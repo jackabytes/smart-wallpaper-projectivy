@@ -2,7 +2,7 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
-    alias(libs.plugins.kotlin.serialization)
+    alias(libs.plugins.kotlin.parcelize)
 }
 
 kotlin {
@@ -12,7 +12,7 @@ kotlin {
 }
 
 android {
-    namespace = libs.versions.appId.get()
+    namespace = "tv.projectivy.plugin.wallpaperprovider.sample"
     compileSdk = libs.versions.compileSdk.get().toInt()
 
     compileOptions {
@@ -21,35 +21,40 @@ android {
     }
 
     defaultConfig {
-        applicationId = libs.versions.appId.get()
+        applicationId = "com.jackabytes.smartwallpaper"
+
         minSdk = libs.versions.minSdk.get().toInt()
         targetSdk = libs.versions.targetSdk.get().toInt()
-        versionCode = libs.versions.versionCode.get().toInt()
-        versionName = libs.versions.versionName.get()
+
+        versionCode = 1
+        versionName = "1.0"
     }
 
     buildFeatures {
         buildConfig = true
+        aidl = true
     }
 
     buildTypes {
+
+        getByName("debug") {
+            applicationIdSuffix = ".debug"
+        }
+
         getByName("release") {
-            isShrinkResources = true
-            isMinifyEnabled = true
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
+            isMinifyEnabled = false
+            isShrinkResources = false
         }
     }
 }
 
 dependencies {
+
     implementation(libs.androidx.core)
     implementation(libs.androidx.leanback)
     implementation(libs.androidx.appcompat)
     implementation(libs.google.material)
     implementation(libs.androidx.preference.ktx)
-    implementation(libs.kotlinx.serialization.json)
+
     implementation(project(":api"))
 }
