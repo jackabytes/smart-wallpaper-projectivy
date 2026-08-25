@@ -56,6 +56,7 @@ dependencies {
     implementation(libs.google.material)
     implementation(libs.androidx.preference.ktx)
     implementation(libs.kotlinx.serialization.json)
+    implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.10.2")
 
     implementation(project(":api"))
 }
