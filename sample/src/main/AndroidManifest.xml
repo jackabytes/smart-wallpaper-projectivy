@@ -1,42 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools"
+    tools:ignore="MissingLeanbackLauncher">
 
     <uses-permission android:name="android.permission.INTERNET" />
 
+    <uses-feature
+        android:name="android.hardware.touchscreen"
+        android:required="false" />
+
+    <uses-feature
+        android:name="android.software.leanback"
+        android:required="true" />
+
+    <queries>
+        <package android:name="com.spocky.projengmenu" />
+    </queries>
+
     <application
         android:allowBackup="false"
-        android:banner="@drawable/ic_banner_drawable"
-        android:icon="@drawable/ic_plugin"
         android:label="@string/plugin_name"
         android:supportsRtl="true"
+        android:icon="@drawable/ic_plugin"
+        android:banner="@drawable/ic_banner_drawable"
         android:theme="@style/Theme.ProjectivyWallpaperProvider">
-
-        <meta-data
-            android:name="apiVersion"
-            android:value="1" />
-
-        <meta-data
-            android:name="pluginUuid"
-            android:value="@string/plugin_uuid" />
-
-        <!-- How long should Projectivy keep wallpapers before a new request -->
-        <meta-data
-            android:name="itemsCacheDurationMillis"
-            android:value="@integer/items_cache_duration_millis" />
-
-        <!-- 1 = time elapsed -->
-        <meta-data
-            android:name="updateMode"
-            android:value="1" />
 
         <service
             android:name=".WallpaperProviderService"
             android:exported="true"
-            android:permission="tv.projectivy.permission.WALLPAPER_PROVIDER">
+            android:label="@string/plugin_name"
+            android:icon="@drawable/ic_plugin"
+            android:banner="@drawable/ic_banner_drawable"
+            android:permission="tv.projectivy.permission.WALLPAPER_PROVIDER"
+            tools:ignore="ExportedService">
 
+            <!-- Mandatory for the plugin to be detected -->
             <intent-filter>
                 <action android:name="tv.projectivy.plugin.WALLPAPER_PROVIDER" />
             </intent-filter>
+
+            <!-- API version -->
+            <meta-data
+                android:name="apiVersion"
+                android:value="1" />
+
+            <!-- Unique plugin UUID -->
+            <meta-data
+                android:name="uuid"
+                android:value="@string/plugin_uuid" />
+
+            <!-- Plugin name -->
+            <meta-data
+                android:name="name"
+                android:value="@string/plugin_name" />
+
+            <!-- Settings activity -->
+            <meta-data
+                android:name="settingsActivity"
+                android:value=".SettingsActivity" />
+
+            <!-- Projectivy wallpaper cache: 1 hour -->
+            <meta-data
+                android:name="itemsCacheDurationMillis"
+                android:value="@integer/items_cache_duration_millis" />
+
+            <!-- Time elapsed only -->
+            <meta-data
+                android:name="updateMode"
+                android:value="1" />
 
         </service>
 
