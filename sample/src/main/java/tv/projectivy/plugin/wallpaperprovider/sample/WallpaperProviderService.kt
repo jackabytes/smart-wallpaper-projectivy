@@ -105,7 +105,7 @@ class WallpaperProviderService : Service() {
                     type = WallpaperType.VIDEO,
                     displayMode = WallpaperDisplayMode.DEFAULT,
                     title = title,
-                    source = WALLPAPER_JSON_URL
+                    source = "Smart Wallpaper"
                 )
             )
 
