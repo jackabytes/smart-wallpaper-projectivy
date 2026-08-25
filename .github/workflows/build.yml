@@ -1,0 +1,45 @@
+name: Build Smart Wallpaper
+
+on:
+  push:
+    branches:
+      - main
+
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: Build APK
+    runs-on: ubuntu-latest
+
+    steps:
+
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        run: |
+          chmod +x ./gradlew
+          ./gradlew :sample:assembleDebug
+
+      - name: Rename APK
+        run: |
+          mkdir -p build-output
+          cp sample/build/outputs/apk/debug/sample-debug.apk \
+             build-output/SmartWallpaper.apk
+
+      - name: Upload Smart Wallpaper APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: SmartWallpaper
+          path: build-output/SmartWallpaper.apk
+          if-no-files-found: error
