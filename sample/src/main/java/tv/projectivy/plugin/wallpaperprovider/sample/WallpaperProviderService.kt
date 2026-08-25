@@ -6,7 +6,6 @@ import android.os.IBinder
 import tv.projectivy.plugin.wallpaperprovider.api.Event
 import tv.projectivy.plugin.wallpaperprovider.api.IWallpaperProviderService
 import tv.projectivy.plugin.wallpaperprovider.api.Wallpaper
-import tv.projectivy.plugin.wallpaperprovider.api.WallpaperDisplayMode
 import tv.projectivy.plugin.wallpaperprovider.api.WallpaperType
 
 class WallpaperProviderService : Service() {
@@ -15,16 +14,20 @@ class WallpaperProviderService : Service() {
 
         override fun getWallpapers(event: Event?): List<Wallpaper> {
 
-            return listOf(
-                Wallpaper(
-                    uri = TEST_VIDEO_URL,
-                    type = WallpaperType.VIDEO,
-                    displayMode = WallpaperDisplayMode.DEFAULT,
-                    title = "Smart Wallpaper Test",
-                    source = TEST_VIDEO_URL,
-                    author = null
-                )
-            )
+            return when (event) {
+
+                is Event.TimeElapsed -> {
+
+                    listOf(
+                        Wallpaper(
+                            TEST_VIDEO_URL,
+                            WallpaperType.VIDEO
+                        )
+                    )
+                }
+
+                else -> emptyList()
+            }
         }
 
         override fun getPreferences(): String {
@@ -35,7 +38,7 @@ class WallpaperProviderService : Service() {
         }
     }
 
-    override fun onBind(intent: Intent?): IBinder {
+    override fun onBind(intent: Intent): IBinder {
         return binder
     }
 
