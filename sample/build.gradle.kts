@@ -1,7 +1,8 @@
-import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+hi import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     alias(libs.plugins.android.application)
+    alias(libs.plugins.kotlin.serialization)
     alias(libs.plugins.kotlin.parcelize)
 }
 
@@ -49,12 +50,12 @@ android {
 }
 
 dependencies {
-
     implementation(libs.androidx.core)
     implementation(libs.androidx.leanback)
     implementation(libs.androidx.appcompat)
     implementation(libs.google.material)
     implementation(libs.androidx.preference.ktx)
+    implementation(libs.kotlinx.serialization.json)
 
     implementation(project(":api"))
 }
