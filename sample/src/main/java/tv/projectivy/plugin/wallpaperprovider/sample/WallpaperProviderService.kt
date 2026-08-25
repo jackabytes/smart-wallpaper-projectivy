@@ -6,6 +6,7 @@ import android.os.IBinder
 import tv.projectivy.plugin.wallpaperprovider.api.Event
 import tv.projectivy.plugin.wallpaperprovider.api.IWallpaperProviderService
 import tv.projectivy.plugin.wallpaperprovider.api.Wallpaper
+import tv.projectivy.plugin.wallpaperprovider.api.WallpaperDisplayMode
 import tv.projectivy.plugin.wallpaperprovider.api.WallpaperType
 import java.net.HttpURLConnection
 import java.net.URL
@@ -102,6 +103,7 @@ class WallpaperProviderService : Service() {
                 Wallpaper(
                     uri = wallpaperUrl,
                     type = WallpaperType.VIDEO,
+                    displayMode = WallpaperDisplayMode.DEFAULT,
                     title = title,
                     source = WALLPAPER_JSON_URL
                 )
