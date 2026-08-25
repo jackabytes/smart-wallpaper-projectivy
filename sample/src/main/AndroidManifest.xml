@@ -30,7 +30,6 @@
             android:label="@string/plugin_name"
             android:icon="@drawable/ic_plugin"
             android:banner="@drawable/ic_banner_drawable"
-            android:permission="tv.projectivy.permission.WALLPAPER_PROVIDER"
             tools:ignore="ExportedService">
 
             <intent-filter>
