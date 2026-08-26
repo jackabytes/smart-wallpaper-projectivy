@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <!-- Projectivy provider item cache: 1 hour -->
-    <integer name="items_cache_duration_millis">3600000</integer>
+    <!-- Ask the provider for fresh wallpaper data every 15 minutes -->
+    <integer name="items_cache_duration_millis">900000</integer>
 
     <!-- Projectivy update modes -->
     <integer name="update_mode_time_elapsed">1</integer>
