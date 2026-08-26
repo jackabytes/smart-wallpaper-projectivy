@@ -1,0 +1,18 @@
+name: Cron Test
+
+on:
+  schedule:
+    - cron: "3,8,13,18,23,28,33,38,43,48,53,58 * * * *"
+  workflow_dispatch:
+
+jobs:
+  cron-test:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Confirm scheduled run
+        run: |
+          echo "CRON TEST RAN"
+          echo "UTC time: $(date -u)"
+          echo "Event: ${{ github.event_name }}"
+          echo "Schedule: ${{ github.event.schedule }}"
