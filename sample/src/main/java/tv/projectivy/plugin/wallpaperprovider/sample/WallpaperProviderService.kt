@@ -3,26 +3,21 @@ package tv.projectivy.plugin.wallpaperprovider.sample
 import android.app.Service
 import android.content.Intent
 import android.os.IBinder
-import org.json.JSONArray
-import org.json.JSONObject
 import tv.projectivy.plugin.wallpaperprovider.api.Event
 import tv.projectivy.plugin.wallpaperprovider.api.IWallpaperProviderService
 import tv.projectivy.plugin.wallpaperprovider.api.Wallpaper
 import tv.projectivy.plugin.wallpaperprovider.api.WallpaperType
-import java.net.HttpURLConnection
-import java.net.URL
+import java.util.Calendar
 
 class WallpaperProviderService : Service() {
 
     private val binder = object : IWallpaperProviderService.Stub() {
 
         override fun getWallpapers(event: Event?): List<Wallpaper> {
-
             return when (event) {
-
                 is Event.TimeElapsed -> {
                     runCatching {
-                        loadWallpaper()
+                        listOf(getCurrentWallpaper())
                     }.getOrElse {
                         emptyList()
                     }
@@ -44,114 +39,74 @@ class WallpaperProviderService : Service() {
         return binder
     }
 
-    private fun loadWallpaper(): List<Wallpaper> {
+    private fun getCurrentWallpaper(): Wallpaper {
 
-        val connection =
-            URL(WALLPAPER_JSON_URL).openConnection() as HttpURLConnection
+        val calendar = Calendar.getInstance()
+        val hour = calendar.get(Calendar.HOUR_OF_DAY)
 
-        try {
-            connection.requestMethod = "GET"
-            connection.connectTimeout = 10000
-            connection.readTimeout = 15000
-            connection.useCaches = false
+        /*
+         * Daily schedule:
+         *
+         * 06:00 - 12:00  Morning
+         * 12:00 - 18:00  Afternoon
+         * 18:00 - 21:00  Evening
+         * 21:00 - 06:00  Night
+         */
 
-            connection.setRequestProperty(
-                "Accept",
-                "application/json"
-            )
+        val videos = when (hour) {
 
-            connection.setRequestProperty(
-                "User-Agent",
-                "SmartWallpaper/1.0"
-            )
+            in 6..11 -> MORNING
 
-            if (connection.responseCode !in 200..299) {
-                return emptyList()
-            }
+            in 12..17 -> AFTERNOON
 
-            val json =
-                connection.inputStream
-                    .bufferedReader()
-                    .use { it.readText() }
+            in 18..20 -> EVENING
 
-            val wallpaper = extractWallpaper(json)
-                ?: return emptyList()
-
-            val videoUrl =
-                wallpaper.optString("url_1080p")
-                    .ifBlank {
-                        wallpaper.optString("url")
-                    }
-
-            if (videoUrl.isBlank()) {
-                return emptyList()
-            }
-
-            return listOf(
-                Wallpaper(
-                    videoUrl,
-                    WallpaperType.VIDEO
-                )
-            )
-
-        } finally {
-            connection.disconnect()
-        }
-    }
-
-    private fun extractWallpaper(json: String): JSONObject? {
-
-        val trimmed = json.trim()
-
-        // Supports:
-        //
-        // [
-        //   {
-        //     "title": "Day",
-        //     "url_1080p": "https://..."
-        //   }
-        // ]
-        //
-        if (trimmed.startsWith("[")) {
-
-            val array = JSONArray(trimmed)
-
-            if (array.length() == 0) {
-                return null
-            }
-
-            return array.optJSONObject(0)
+            else -> NIGHT
         }
 
-        // Also supports:
-        //
-        // {
-        //   "wallpapers": [...]
-        // }
-        //
-        // or:
-        //
-        // {
-        //   "items": [...]
-        // }
+        /*
+         * Keep the same wallpaper throughout each period.
+         * The day number gives us a stable daily selection.
+         */
 
-        val root = JSONObject(trimmed)
+        val dayOfYear = calendar.get(Calendar.DAY_OF_YEAR)
 
-        val wallpapers =
-            root.optJSONArray("wallpapers")
-                ?: root.optJSONArray("items")
-                ?: return null
+        val videoUrl =
+            videos[dayOfYear % videos.size]
 
-        if (wallpapers.length() == 0) {
-            return null
-        }
-
-        return wallpapers.optJSONObject(0)
+        return Wallpaper(
+            videoUrl,
+            WallpaperType.VIDEO
+        )
     }
 
     companion object {
 
-        private const val WALLPAPER_JSON_URL =
-            "https://jackabytes.github.io/smart-wallpaper/wallpaper.json"
+        private val MORNING = listOf(
+            "https://drive.google.com/uc?export=download&id=1t3S5MLsvA223YWPo9-r9VO2TJSHnvYbf",
+            "https://drive.google.com/uc?export=download&id=1RIIn3bPRGLQYgZ23tGSkQl-DKfcZb9vq"
+        )
+
+        private val AFTERNOON = listOf(
+            "https://drive.google.com/uc?export=download&id=1zqvU3GjryGl4F4W4PVr0BLwN_N2vSx1P",
+            "https://drive.google.com/uc?export=download&id=1fo3WC0Dzg3dHWEQ8LxHVRANER_cCz8HZ",
+            "https://drive.google.com/uc?export=download&id=1_WNs5BPQiL_UL7JQGyurHDzceJXkayGt"
+        )
+
+        private val EVENING = listOf(
+            "https://drive.google.com/uc?export=download&id=1W1tSjNr87oSOCR1M76yQWAVhx9bbzeL_",
+            "https://drive.google.com/uc?export=download&id=1BDeR95Wsc8o4IQPZ2ME1pkdOs1dvd3ta",
+            "https://drive.google.com/uc?export=download&id=1oMJKARv4AFt_pq5kflutUOq-mbV9Ku9",
+            "https://drive.google.com/uc?export=download&id=1u44NnCDNWHJHe1qIgHzPF49e0Q2NPgrC",
+            "https://drive.google.com/uc?export=download&id=1p-zqwF9XX9CLy-aBb7DAPDMSB_uThoUH"
+        )
+
+        private val NIGHT = listOf(
+            "https://drive.google.com/uc?export=download&id=1DTnNH9h_1L3e_-qlxPFhioLDgy9mzFDp",
+            "https://drive.google.com/uc?export=download&id=1LeAlZr4IclCuARoInOte1D5Ato-H91Am",
+            "https://drive.google.com/uc?export=download&id=1hDkSF-NxditoJ5nSw68zuu9gfA86o1MW",
+            "https://drive.google.com/uc?export=download&id=1iQmbGMDP9gtETnLkuIkUObxwS_CW5syg",
+            "https://drive.google.com/uc?export=download&id=1CfWIo-aEUh3XS6U4sqcBdirwxG4odaMY"
+        )
     }
 }
