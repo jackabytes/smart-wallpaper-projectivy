@@ -1,7 +1,9 @@
 package tv.projectivy.plugin.wallpaperprovider.sample
 
 import android.app.Service
+import android.content.ContentResolver
 import android.content.Intent
+import android.net.Uri
 import android.os.IBinder
 import tv.projectivy.plugin.wallpaperprovider.api.Event
 import tv.projectivy.plugin.wallpaperprovider.api.IWallpaperProviderService
@@ -11,32 +13,55 @@ import java.util.Calendar
 
 class WallpaperProviderService : Service() {
 
+    override fun onCreate() {
+        super.onCreate()
+        PreferencesManager.init(this)
+    }
+
+    override fun onBind(intent: Intent): IBinder {
+        return binder
+    }
+
     private val binder = object : IWallpaperProviderService.Stub() {
 
         override fun getWallpapers(event: Event?): List<Wallpaper> {
+
             return when (event) {
+
                 is Event.TimeElapsed -> {
-                    runCatching {
-                        listOf(getCurrentWallpaper())
-                    }.getOrElse {
-                        emptyList()
-                    }
+                    listOf(getCurrentWallpaper())
                 }
+
+                // Keep the normal Projectivy provider behaviour.
+                // These events are not used by Smart Wallpaper.
+                is Event.NowPlayingChanged -> emptyList()
+
+                is Event.CardFocused -> emptyList()
+
+                is Event.ProgramCardFocused -> emptyList()
+
+                is Event.LauncherIdleModeChanged -> emptyList()
 
                 else -> emptyList()
             }
         }
 
         override fun getPreferences(): String {
-            return "{}"
+            return PreferencesManager.export()
         }
 
         override fun setPreferences(params: String) {
+            PreferencesManager.import(params)
         }
-    }
 
-    override fun onBind(intent: Intent): IBinder {
-        return binder
+        fun getDrawableUri(drawableId: Int): Uri {
+            return Uri.Builder()
+                .scheme(ContentResolver.SCHEME_ANDROID_RESOURCE)
+                .authority(resources.getResourcePackageName(drawableId))
+                .appendPath(resources.getResourceTypeName(drawableId))
+                .appendPath(resources.getResourceEntryName(drawableId))
+                .build()
+        }
     }
 
     private fun getCurrentWallpaper(): Wallpaper {
@@ -45,12 +70,12 @@ class WallpaperProviderService : Service() {
         val hour = calendar.get(Calendar.HOUR_OF_DAY)
 
         /*
-         * Daily schedule:
+         * Smart Wallpaper daily schedule:
          *
-         * 06:00 - 12:00  Morning
-         * 12:00 - 18:00  Afternoon
-         * 18:00 - 21:00  Evening
-         * 21:00 - 06:00  Night
+         * 06:00 - 11:59  Morning
+         * 12:00 - 17:59  Afternoon
+         * 18:00 - 20:59  Evening
+         * 21:00 - 05:59  Night
          */
 
         val videos = when (hour) {
@@ -65,14 +90,14 @@ class WallpaperProviderService : Service() {
         }
 
         /*
-         * Keep the same wallpaper throughout each period.
-         * The day number gives us a stable daily selection.
+         * Choose one stable video for the current day.
+         * This prevents the wallpaper changing randomly
+         * every time Projectivy asks the provider.
          */
 
         val dayOfYear = calendar.get(Calendar.DAY_OF_YEAR)
 
-        val videoUrl =
-            videos[dayOfYear % videos.size]
+        val videoUrl = videos[dayOfYear % videos.size]
 
         return Wallpaper(
             videoUrl,
