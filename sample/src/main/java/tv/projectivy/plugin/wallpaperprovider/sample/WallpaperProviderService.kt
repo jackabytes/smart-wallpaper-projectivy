@@ -102,16 +102,11 @@ class WallpaperProviderService : Service() {
 
         /*
          * One deterministic video for the day.
-         *
-         * Projectivy can request this repeatedly without causing
-         * the wallpaper itself to randomly change.
          */
         val videoUrl = videos[dayOfYear % videos.size]
 
         /*
-         * This key identifies the actual wallpaper that should be
-         * cached. Repeated Projectivy refreshes during the same
-         * period therefore reuse the existing local file.
+         * Cache key changes when the time period changes.
          */
         val cacheKey = "$dayOfYear-$period-${videoUrl.hashCode()}"
 
@@ -121,23 +116,27 @@ class WallpaperProviderService : Service() {
         )
 
         if (cachedFile != null) {
-            return wallpaperForFile(cachedFile)
+            return wallpaperForFile(
+                cachedFile,
+                period
+            )
         }
 
         /*
          * Download failed.
-         *
-         * Keep whatever wallpaper was already working rather than
-         * handing Projectivy a broken Drive URL.
+         * Keep whatever wallpaper was already working.
          */
         val existingFile = findExistingCachedVideo()
 
         if (existingFile != null) {
-            return wallpaperForFile(existingFile)
+            return wallpaperForFile(
+                existingFile,
+                period
+            )
         }
 
         /*
-         * First-ever launch, before a local video exists.
+         * First-ever launch.
          */
         return Wallpaper(
             videoUrl,
@@ -145,13 +144,36 @@ class WallpaperProviderService : Service() {
         )
     }
 
-    private fun wallpaperForFile(file: File): Wallpaper {
+    private fun wallpaperForFile(
+        file: File,
+        period: String
+    ): Wallpaper {
 
-        val localUri = FileProvider.getUriForFile(
+        val baseUri = FileProvider.getUriForFile(
             this,
             "$packageName.fileprovider",
             file
         )
+
+        /*
+         * Make each time period a distinct wallpaper identity.
+         *
+         * Projectivy can therefore recognise:
+         *
+         * evening -> night
+         * night -> morning
+         * morning -> afternoon
+         * afternoon -> evening
+         *
+         * as a new wallpaper even though the underlying file is
+         * current.mp4.
+         */
+        val localUri = baseUri.buildUpon()
+            .appendQueryParameter(
+                "period",
+                period
+            )
+            .build()
 
         /*
          * Projectivy needs read access to the content:// URI.
@@ -173,9 +195,6 @@ class WallpaperProviderService : Service() {
         cacheKey: String
     ): File? {
 
-        /*
-         * Keep the wallpaper in its own cache directory.
-         */
         val wallpaperCacheDir = File(
             cacheDir,
             "wallpaper"
@@ -197,10 +216,6 @@ class WallpaperProviderService : Service() {
 
         /*
          * Already have exactly the video we need.
-         *
-         * This is the important bit:
-         * Projectivy can ask us every few minutes and this returns
-         * immediately without downloading anything.
          */
         if (
             finalFile.exists() &&
@@ -211,12 +226,6 @@ class WallpaperProviderService : Service() {
             return finalFile
         }
 
-        /*
-         * Download to a temporary file.
-         *
-         * We NEVER overwrite current.mp4 until the new video has
-         * downloaded successfully.
-         */
         val tempFile = File(
             wallpaperCacheDir,
             "download.tmp"
@@ -242,11 +251,6 @@ class WallpaperProviderService : Service() {
                 return null
             }
 
-            /*
-             * The download is complete.
-             *
-             * Now it is safe to replace the old wallpaper.
-             */
             if (finalFile.exists()) {
                 finalFile.delete()
             }
@@ -293,10 +297,7 @@ class WallpaperProviderService : Service() {
                     .orEmpty()
 
             /*
-             * Google Drive can return an HTML quota/error page
-             * instead of the actual video.
-             *
-             * Never save that page as our wallpaper.
+             * Never save a Google Drive HTML error page.
              */
             if (
                 contentType.contains(
