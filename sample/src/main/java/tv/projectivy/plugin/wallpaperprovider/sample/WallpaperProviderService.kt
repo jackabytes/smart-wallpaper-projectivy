@@ -121,7 +121,7 @@ class WallpaperProviderService : Service() {
         )
 
         if (cachedFile != null) {
-            return wallpaperForFile(cachedFile)
+            return wallpaperForFile(cachedFile, period)
         }
 
         /*
@@ -133,7 +133,7 @@ class WallpaperProviderService : Service() {
         val existingFile = findExistingCachedVideo()
 
         if (existingFile != null) {
-            return wallpaperForFile(existingFile)
+            return wallpaperForFile(existingFile, period)
         }
 
         /*
@@ -145,25 +145,38 @@ class WallpaperProviderService : Service() {
         )
     }
 
-    private fun wallpaperForFile(file: File): Wallpaper {
+    private fun wallpaperForFile(
+        file: File,
+        period: String
+    ): Wallpaper {
 
-        val localUri = FileProvider.getUriForFile(
+        val baseUri = FileProvider.getUriForFile(
             this,
             "$packageName.fileprovider",
             file
         )
 
         /*
-         * Projectivy needs read access to the content:// URI.
+         * Give Projectivy a different wallpaper identity when the
+         * time period changes, while still pointing to the same
+         * local current.mp4 file.
+         *
+         * The FileProvider continues serving the underlying file;
+         * the query parameter is only used to make the URI identity
+         * different to Projectivy.
          */
+        val wallpaperUri = baseUri.buildUpon()
+            .appendQueryParameter("period", period)
+            .build()
+
         grantUriPermission(
             "com.spocky.projengmenu",
-            localUri,
+            wallpaperUri,
             Intent.FLAG_GRANT_READ_URI_PERMISSION
         )
 
         return Wallpaper(
-            localUri.toString(),
+            wallpaperUri.toString(),
             WallpaperType.VIDEO
         )
     }
