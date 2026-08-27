@@ -2,7 +2,7 @@
 <resources>
 
     <!-- Ask the provider for fresh wallpaper data every 15 minutes -->
-    <integer name="items_cache_duration_millis">900000</integer>
+    <integer name="items_cache_duration_millis">300000</integer>
 
     <!-- Projectivy update modes -->
     <integer name="update_mode_time_elapsed">1</integer>
