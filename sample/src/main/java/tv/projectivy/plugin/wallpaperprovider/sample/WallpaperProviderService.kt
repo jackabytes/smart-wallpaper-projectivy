@@ -25,25 +25,9 @@ class WallpaperProviderService : Service() {
     private val binder = object : IWallpaperProviderService.Stub() {
 
         override fun getWallpapers(event: Event?): List<Wallpaper> {
-
-            return when (event) {
-
-                is Event.TimeElapsed -> {
-                    listOf(getCurrentWallpaper())
-                }
-
-                // Keep the normal Projectivy provider behaviour.
-                // These events are not used by Smart Wallpaper.
-                is Event.NowPlayingChanged -> emptyList()
-
-                is Event.CardFocused -> emptyList()
-
-                is Event.ProgramCardFocused -> emptyList()
-
-                is Event.LauncherIdleModeChanged -> emptyList()
-
-                else -> emptyList()
-            }
+            // Projectivy may ask for wallpapers using different event types.
+            // Always return the wallpaper appropriate for the current time.
+            return listOf(getCurrentWallpaper())
         }
 
         override fun getPreferences(): String {
@@ -79,24 +63,19 @@ class WallpaperProviderService : Service() {
          */
 
         val videos = when (hour) {
-
             in 6..11 -> MORNING
-
             in 12..17 -> AFTERNOON
-
             in 18..20 -> EVENING
-
             else -> NIGHT
         }
 
         /*
-         * Choose one stable video for the current day.
-         * This prevents the wallpaper changing randomly
-         * every time Projectivy asks the provider.
+         * Pick one stable video for the current day.
+         * Projectivy can ask repeatedly without the wallpaper
+         * changing randomly.
          */
 
         val dayOfYear = calendar.get(Calendar.DAY_OF_YEAR)
-
         val videoUrl = videos[dayOfYear % videos.size]
 
         return Wallpaper(
