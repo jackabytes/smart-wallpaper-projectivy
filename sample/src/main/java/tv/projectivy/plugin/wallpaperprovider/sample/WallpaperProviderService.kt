@@ -47,7 +47,15 @@ class WallpaperProviderService : Service() {
                 is Event.NowPlayingChanged -> emptyList()
                 is Event.CardFocused -> emptyList()
                 is Event.ProgramCardFocused -> emptyList()
-                is Event.LauncherIdleModeChanged -> emptyList()
+
+                is Event.LauncherIdleModeChanged -> {
+                    if (event.isIdle) {
+                        emptyList()
+                    } else {
+                        listOf(getCurrentWallpaper())
+                    }
+                }
+
                 else -> emptyList()
             }
         }
@@ -71,7 +79,6 @@ class WallpaperProviderService : Service() {
     }
 
     private fun getCurrentWallpaper(): Wallpaper {
-
         val calendar = Calendar.getInstance()
         val hour = calendar.get(Calendar.HOUR_OF_DAY)
 
@@ -106,6 +113,7 @@ class WallpaperProviderService : Service() {
          * Projectivy can request this repeatedly without causing
          * the wallpaper itself to randomly change.
          */
+
         val videoUrl = videos[dayOfYear % videos.size]
 
         /*
@@ -113,6 +121,7 @@ class WallpaperProviderService : Service() {
          * cached. Repeated Projectivy refreshes during the same
          * period therefore reuse the existing local file.
          */
+
         val cacheKey = "$dayOfYear-$period-${videoUrl.hashCode()}"
 
         val cachedFile = ensureCachedVideo(
@@ -130,6 +139,7 @@ class WallpaperProviderService : Service() {
          * Keep whatever wallpaper was already working rather than
          * handing Projectivy a broken Drive URL.
          */
+
         val existingFile = findExistingCachedVideo()
 
         if (existingFile != null) {
@@ -139,6 +149,7 @@ class WallpaperProviderService : Service() {
         /*
          * First-ever launch, before a local video exists.
          */
+
         return Wallpaper(
             videoUrl,
             WallpaperType.VIDEO
@@ -149,7 +160,6 @@ class WallpaperProviderService : Service() {
         file: File,
         period: String
     ): Wallpaper {
-
         val baseUri = FileProvider.getUriForFile(
             this,
             "$packageName.fileprovider",
@@ -160,11 +170,8 @@ class WallpaperProviderService : Service() {
          * Give Projectivy a different wallpaper identity when the
          * time period changes, while still pointing to the same
          * local current.mp4 file.
-         *
-         * The FileProvider continues serving the underlying file;
-         * the query parameter is only used to make the URI identity
-         * different to Projectivy.
          */
+
         val wallpaperUri = baseUri.buildUpon()
             .appendQueryParameter("period", period)
             .build()
@@ -185,10 +192,6 @@ class WallpaperProviderService : Service() {
         videoUrl: String,
         cacheKey: String
     ): File? {
-
-        /*
-         * Keep the wallpaper in its own cache directory.
-         */
         val wallpaperCacheDir = File(
             cacheDir,
             "wallpaper"
@@ -210,11 +213,8 @@ class WallpaperProviderService : Service() {
 
         /*
          * Already have exactly the video we need.
-         *
-         * This is the important bit:
-         * Projectivy can ask us every few minutes and this returns
-         * immediately without downloading anything.
          */
+
         if (
             finalFile.exists() &&
             finalFile.length() > 0L &&
@@ -226,17 +226,14 @@ class WallpaperProviderService : Service() {
 
         /*
          * Download to a temporary file.
-         *
-         * We NEVER overwrite current.mp4 until the new video has
-         * downloaded successfully.
          */
+
         val tempFile = File(
             wallpaperCacheDir,
             "download.tmp"
         )
 
         return try {
-
             if (tempFile.exists()) {
                 tempFile.delete()
             }
@@ -255,11 +252,6 @@ class WallpaperProviderService : Service() {
                 return null
             }
 
-            /*
-             * The download is complete.
-             *
-             * Now it is safe to replace the old wallpaper.
-             */
             if (finalFile.exists()) {
                 finalFile.delete()
             }
@@ -272,11 +264,8 @@ class WallpaperProviderService : Service() {
             keyFile.writeText(cacheKey)
 
             finalFile
-
         } catch (_: Exception) {
-
             tempFile.delete()
-
             null
         }
     }
@@ -285,14 +274,12 @@ class WallpaperProviderService : Service() {
         url: String,
         destination: File
     ): Boolean {
-
         val request = Request.Builder()
             .url(url)
             .get()
             .build()
 
         httpClient.newCall(request).execute().use { response ->
-
             if (!response.isSuccessful) {
                 return false
             }
@@ -300,17 +287,15 @@ class WallpaperProviderService : Service() {
             val body = response.body
                 ?: return false
 
-            val contentType =
-                body.contentType()
-                    ?.toString()
-                    .orEmpty()
+            val contentType = body.contentType()
+                ?.toString()
+                .orEmpty()
 
             /*
              * Google Drive can return an HTML quota/error page
              * instead of the actual video.
-             *
-             * Never save that page as our wallpaper.
              */
+
             if (
                 contentType.contains(
                     "text/html",
@@ -321,9 +306,7 @@ class WallpaperProviderService : Service() {
             }
 
             body.byteStream().use { input ->
-
                 destination.outputStream().use { output ->
-
                     input.copyTo(
                         output,
                         bufferSize = 64 * 1024
@@ -337,7 +320,6 @@ class WallpaperProviderService : Service() {
     }
 
     private fun findExistingCachedVideo(): File? {
-
         val wallpaperCacheDir = File(
             cacheDir,
             "wallpaper"
